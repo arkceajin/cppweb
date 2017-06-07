@@ -1,0 +1,102 @@
+#!/bin/bash -e
+
+source $OPENSHIFT_CARTRIDGE_SDK_BASH
+
+cartridge_type="cpp"
+
+
+function isrunning() {
+# Check for running app
+	pid=$(ps -ef | grep "[_]exec" | awk '{print $2}')
+	if [ "$pid" != "" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+# Check if the server http port is up
+function ishttpup() {
+	echo "Is HTTP up?"
+}
+
+function build() {
+	echo "Building $cartride_type cart"
+	cd ${OPENSHIFT_REPO_DIR}
+	cmake . 2>&1 >> ${OPENSHIFT_LOG_DIR}${OPENSHIFT_APP_NAME}-compile.log
+	make 2>&1 >> ${OPENSHIFT_LOG_DIR}${OPENSHIFT_APP_NAME}-compile.log
+
+}
+
+function deploy() {
+  echo "Deploying $cartridge_type cart"
+
+}
+
+function start() {
+  echo "Starting $cartridge_type cart"
+  echo `date` >> ${OPENSHIFT_DATA_DIR}test.log
+  echo "executing script" >> ${OPENSHIFT_DATA_DIR}test.log
+  if [ -e ${OPENSHIFT_REPO_DIR}${OPENSHIFT_APP_NAME}_exec ]
+  then
+    ${OPENSHIFT_REPO_DIR}${OPENSHIFT_APP_NAME}_exec 2>&1 >> ${OPENSHIFT_LOG_DIR}${OPENSHIFT_APP_NAME}.log &
+  else 
+	  build
+	  start
+  fi
+
+}
+
+
+function stop() {
+  echo "Stopping $cartridge_type cart"
+  if isrunning
+  then
+	  pid=$(ps -ef | grep "[_]exec" | awk '{print $2}')
+	  echo "Sending SIGTERM to papertrailapp:$pid ..." 1>&2
+	  kill $pid
+  fi
+ 
+}
+
+function restart() {
+    echo "Restarting $cartridge_type cart"
+
+    stop
+
+    start
+}
+
+function status() {
+   if isrunning
+   then
+      client_result "Application is running"
+   else
+      client_result "Application is either stopped or inaccessible"
+   fi
+}
+
+function reload() {
+    echo "Reloading $cartridge_type cart"
+    restart
+}
+
+# Clean up any log files
+function tidy() {
+  client_message "Emptying log dir: $OPENSHIFT_CPP_LOG_DIR"
+  shopt -s dotglob
+  rm -rf $OPENSHIFT_CPP_LOG_DIR/*
+}
+
+case "$1" in
+  build)           build ;;
+  deploy)          deploy ;;
+  start)           start ;;
+  stop)            stop ;;
+  restart)         restart ;;
+  status)          status ;;
+  reload)          reload ;;
+  tidy)            tidy ;;
+  *)               exit 0
+esac
+
